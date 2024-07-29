@@ -1,5 +1,6 @@
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
+    env,
     io::{self, Write},
     net::{Ipv6Addr, SocketAddrV6, TcpListener, TcpStream},
     path::Path,
@@ -45,6 +46,8 @@ pub fn watch(path: &Path) -> io::Result<()> {
     let sock_addr = SocketAddrV6::new(ip_addr, 8087, 0, 0);
     let socket = TcpListener::bind(sock_addr)?;
 
+    let delay = get_delay_from_args().unwrap_or(0);
+
     for stream in socket.incoming() {
         match stream {
             Ok(request) => {
@@ -58,7 +61,7 @@ pub fn watch(path: &Path) -> io::Result<()> {
                     let lock = mutex.lock().unwrap();
                     let _cvar = cvar.wait(lock).unwrap();
                     let sleep = *time_to_sleep.lock().unwrap();
-                    thread::sleep(Duration::from_millis(sleep as u64));
+                    thread::sleep(Duration::from_millis(sleep as u64 + delay));
                     respond(request)
                 });
             }
@@ -80,6 +83,25 @@ pub fn watch(path: &Path) -> io::Result<()> {
             reload";
         request.write_all(RESPONSE.as_bytes())?;
         Ok(())
+    }
+
+    fn get_delay_from_args() -> Option<u64> {
+        let args: Vec<String> = env::args().collect();
+        let mut arg: String = args
+            .into_iter()
+            .filter(|x| x.starts_with("--reloadDelay="))
+            .collect();
+        if arg.is_empty() {
+            return None;
+        }
+        arg.drain(0..=13);
+        match arg.parse() {
+            Ok(x) => Some(x),
+            Err(_) => {
+                eprintln!("Error: invalid reload delay value");
+                None
+            }
+        }
     }
 
     Ok(())

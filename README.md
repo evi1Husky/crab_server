@@ -19,5 +19,5 @@ Simple dev server with tab reload.
 2. Put the compiled exe in your web project directory and launch it from there.
 3. Go to http://[::1]:8080/index.html or whatever your project entry is.
 4. You can run tsc --watch or other process along with the server and pipe its output 
-   to the main process like this ./crab_server --run="npx tsc --watch".
+   to the main process like this ./crab_server --run="npx tsc --watch" --reloadDelay=300.
 5. The file watcher listens on :8087 and sends updates to the client using long polling.

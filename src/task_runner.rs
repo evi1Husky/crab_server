@@ -5,18 +5,14 @@ use std::{
 };
 
 pub fn run_command() {
-    let mut args: Vec<String> = env::args().collect();
-
-    if args.len() < 2 {
+    let args: Vec<String> = env::args().collect();
+    let mut arg: String = args
+        .into_iter()
+        .filter(|x| x.starts_with("--run="))
+        .collect();
+    if arg.is_empty() {
         return;
     }
-
-    let mut arg = args.remove(1);
-
-    if !arg.starts_with("--run=") {
-        return;
-    }
-
     arg.drain(0..6);
     let cmd: String = arg.split(' ').take(1).collect();
     let cmd_args = arg.split(' ').skip(1);
