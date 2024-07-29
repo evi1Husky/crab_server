@@ -49,19 +49,19 @@ fn load_file(path: String) -> Result<String> {
 fn add_page_reloader(mut file: String) -> String {
     file.push_str(
         r#"
-            <script>
-                fetch("http://localhost:8087", {
-                    method: "GET",
-                    headers: {
-                        'Content-Type': 'text/plain',
-                        "accept": "text/plain"
-                    }
-                })
-               .then(x => x.text())
-               .then(() => location.reload())
-               .catch(x => x);
-            </script>
-        "#,
+<script>
+  fetch("http://localhost:8087", {
+    method: "GET",
+    headers: {
+      "Content-Type": "text/plain",
+      "accept": "text/plain",
+    },
+      mode: "no-cors",
+  })
+  .then(x => x.text())
+  .then(() => location.reload())
+  .catch(x => x);
+</script>"#,
     );
     file
 }
@@ -71,9 +71,9 @@ fn add_favicon(file: String, fav_icon: &str) -> String {
         "<head>",
         &format!(
             "<head>\n
-                <link rel='icon' href='data:image/svg+xml,
-                <svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22>
-                <text y=%22.9em%22 font-size=%2290%22>{fav_icon}</text></svg>' />"
+<link rel='icon' href='data:image/svg+xml,
+<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22>
+<text y=%22.9em%22 font-size=%2290%22>{fav_icon}</text></svg>' />"
         ),
     )
 }
@@ -110,21 +110,18 @@ pub fn process(mut stream: TcpStream, fav_icon: &str) -> io::Result<()> {
 
     let len = file.len();
 
-    let mut res = String::with_capacity(len);
+    let response = format!(
+        "\
+        {status_line}\r\n\
+        Access-Control-Allow-Origin: *\r\n\
+        Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n\
+        Cache-Control: no-cache\r\n\
+        Content-Type: {mime}; charset=UTF-8\r\n\
+        Content-Length: {len}\r\n\r\n\
+        {file}"
+    );
 
-    res.push_str(status_line);
-    res.push_str("\r\n");
-    res.push_str("Access-Control-Allow-Origin: *\r\n");
-    res.push_str("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n");
-    res.push_str("Cache-Control: no-cache\r\n");
-    res.push_str("Content-Type: ");
-    res.push_str(&mime);
-    res.push_str("; charset=UTF-8\r\n");
-    res.push_str("Content-Length: ");
-    res.push_str(&len.to_string());
-    res.push_str("\r\n\r\n");
-    res.push_str(&file);
+    stream.write_all(response.as_bytes())?;
 
-    stream.write_all(res.as_bytes())?;
     Ok(())
 }

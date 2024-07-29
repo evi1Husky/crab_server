@@ -49,11 +49,14 @@ pub fn watch(path: &Path) -> io::Result<()> {
         match stream {
             Ok(request) => {
                 let pair_clone = Arc::clone(&pair);
+                let (mutex, cvar) = &*pair_clone;
                 let time_to_sleep = Arc::clone(&time_to_sleep);
+                *mutex.lock().unwrap() = false;
+                cvar.notify_all();
                 thread::spawn(move || -> io::Result<()> {
                     let (mutex, cvar) = &*pair_clone;
-                    let loock = mutex.lock().unwrap();
-                    let _cvar = cvar.wait(loock).unwrap();
+                    let lock = mutex.lock().unwrap();
+                    let _cvar = cvar.wait(lock).unwrap();
                     let sleep = *time_to_sleep.lock().unwrap();
                     thread::sleep(Duration::from_millis(sleep as u64));
                     respond(request)
@@ -67,21 +70,15 @@ pub fn watch(path: &Path) -> io::Result<()> {
     }
 
     fn respond(mut request: TcpStream) -> io::Result<()> {
-        let status = String::from("reload");
-        let len = status.len();
-        let mut res = String::with_capacity(len);
-        res.push_str("HTTP/1.1 200 OK");
-        res.push_str("\r\n");
-        res.push_str("Access-Control-Allow-Origin: *\r\n");
-        res.push_str("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n");
-        res.push_str("Cache-Control: no-cache\r\n");
-        res.push_str("Content-Type: text/plain");
-        res.push_str("; charset=UTF-8\r\n");
-        res.push_str("Content-Length: ");
-        res.push_str(&len.to_string());
-        res.push_str("\r\n\r\n");
-        res.push_str(&status);
-        request.write_all(res.as_bytes())?;
+        const RESPONSE: &str = "
+            HTTP/1.1 200 OK\r\n
+            Access-Control-Allow-Origin: *\r\n
+            Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n
+            Cache-Control: no-cache\r\n
+            Content-Type: text/plain; charset=UTF-8\r\n
+            Content-Length: 6\r\n\r\n
+            reload";
+        request.write_all(RESPONSE.as_bytes())?;
         Ok(())
     }
 
